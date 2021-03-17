@@ -1,0 +1,6 @@
+# ARMI 0.1.5 requires h5py < 3.0, due to breaking changes that weren't released
+# until after 0.1.6, so the version bound is not enforced by ARMI per se.
+h5py<3.0
+git+https://github.com/terrapower/armi@0.1.6
+git+https://github.com/terrapower/dragon-armi-plugin
+-e .[dev]

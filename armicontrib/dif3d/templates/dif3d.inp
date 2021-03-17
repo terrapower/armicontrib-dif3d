@@ -1,0 +1,70 @@
+{#
+  Copyright 2021 TerraPower, LLC
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+#}
+BLOCK=OLD
+DATASET=ISOTXS
+BLOCK=STP021,3
+UNFORM=A.DIF3D
+01    {{ opts.label }}
+02 {{ opts.d3dMem2 }}  {{ opts.d3dMem }}
+{% if opts.eigenvalueProblem %}{% set eigProb = '0' %}{% else %}{% set eigProb='1' %}{% endif -%}
+{% if opts.real and opts.adjoint %}{% set adjoint = '2' %}{% elif opts.adjoint %}{% set adjoint='1' %}{% else %}{% set adjoint='0' %}{% endif -%}
+{% if opts.isRestart %}{% set restart= '1' %}{% else %}{% set restart='0' %}{% endif -%}
+{% if r.core.p.keff %}{% set keff=r.core.p.keff %}{% else %}{%set keff=1.0%}{%endif-%}
+03  {{eigProb}} {{adjoint}}     0    4500  {{opts.maxOuters}} {{restart}} 1000000000  5     0     {{ opts.asympExtrapOfOverRelaxCalc }}
+04  1     0     0    00   101  00   100     0     0     111{% if opts.real %}1{% else %}0{%endif%}  0
+05  {{"{:.3E}".format(opts.epsEigenvalue)}} {{"{:.3E}".format(opts.epsFissionSourcePoint)}} {{"{:.3E}".format(opts.epsFissionSourceAvg)}}
+06  {{ "{:.15f}".format(keff) }} {{ "{:.4f}".format(opts.neglectFis) }} {{"{:.1E}".format(opts.erf)}} {{ "{:.8E}".format(r.core.p.power / r.core.powerMultiplier) }}
+{% if opts.nodal %}
+10  {{opts.nodalApproxXY}} {{opts.nodalApproxZ}} {{opts.coarseMeshRebalance}} {{opts.inners}} 2 0 {{opts.asympExtrapOfNodalCalc}}
+{% endif %}
+{% if opts.variantFlag %}
+12 {{opts.variantNodalSpatialApproximation}} {{opts.angularApprox}} {{opts.coarseMeshRebalance}} {{opts.inners}}  {{opts.inners}}  -1 {{opts.asympExtrapOfNodalCalc}}  {{opts.anisotropicScatteringApprox}}  0 1 {%if opts.useRadialInnerIterationAlgorithm%}1{% else %}0{%endif%} 
+{% endif %}
+UNFORM=A.HMG4C
+02  {{ opts.xsMem }} 0 0 {% if opts.listIsotxs %}1{% else %}0{%endif%} 0 1
+{% if opts.real %}
+UNFORM=A.SUMMAR
+01   0    0  40100100
+{% for nuc in nuclideSummary %}
+{# # interpreted by FFORM reader as blank Hollerith #}
+{#  use *'s as string delimiters in DIF3D. Needed around LibID to handle "V   5", etc. in UNFORM mode #}
+06    {{ "{:8s}".format("*"+nuc.libID+"*") }} {{ "{:6s}".format("*"+nuc.typeID+"*") }} {{"{:12.5E}".format(nuc.weight)}} {{"{:6s}".format(nuc.isotxsLabel)}}
+{% endfor %}
+{% endif %}
+UNFORM=A.NIP3
+01     {{ opts.label }}
+02 0 0 {{ opts.nipMem }} 0 0 0 0 0 0 0
+03 {{geomNum}}
+04 {{ boundaryConditions }}
+{% for md in axialMesh %}
+09 {{ md.direction}} {{ md.submeshes }} {{ "{:.9E}".format(md.upperCm) }}
+{% endfor %}
+{% for region, nucID, ndens in compositions %}
+13 {{ "{:6s}".format(region) }} {{ "{:6s}".format(nucID) }} {{"{:.9E}".format(ndens)}}
+{%endfor%}
+{% for block in r.core.getBlocks() %}
+{% set rname = block.name[1:] %}
+14 Z{{ "{:5s} {:6s} 1.0".format(rname, block.name) }}
+14 Y{{ "{:5s} Z{:5s} 1.0".format(rname, rname) }}
+{%endfor%}
+{% for block in r.core.getBlocks() %}
+{% set rname = block.name[1:] %}
+15 Y{{ "{:5s} {:6s}".format(rname, block.getLocation()) }}
+{%endfor%}
+29 {{ r.core.getAssemblyPitch() }} 0 {{opts.numberMeshPerEdge}}
+{% for loc, ring, position, bottom, top in hexes %}
+30 {{loc}} {{ "{:3d}".format(ring) }} {{ "{:3d}".format(position) }} 0 {{ "{:.7E}".format(bottom) }} {{ "{:.7E}".format(top) }}
+{% endfor %}
