@@ -44,8 +44,71 @@ from armi.nucDirectory import nuclideBases
 from armi import runLog
 from armi.physics import neutronics
 from armi.reactor import geometry
+from armi.utils.units import ASCII_LETTER_A, ASCII_ZERO
 
 from . import const
+
+# list of valid ASCII representations of axial levels.
+# A-Z, 0-9, and then some special characters, then a-z
+AXIAL_CHARS = [
+    chr(asciiCode)
+    for asciiCode in (
+        list(range(ASCII_LETTER_A, ASCII_LETTER_A + 26))
+        + list(range(ASCII_ZERO, ASCII_ZERO + 10))
+        + list(range(ASCII_LETTER_A + 26, ASCII_LETTER_A + 32 + 26))
+    )
+]
+
+
+def getDIF3DStyleBlockName(block):
+    """
+    Return a 6-character block name using axial chars.
+
+    Notes
+    -----
+    This was once built into the framework but led to axial block number limitations.
+    """
+    return f"B{block.p.assemNum:04d}{AXIAL_CHARS[block.parent.index(block)]}"
+
+
+def getDIF3DStyleLocatorLabel(block):
+    """
+    Return a 6-character alphanumeric label satisfying DIF3D label needs.
+
+    Needs:
+        * Must start with a letter (old DIF3D requirement)
+        * Must be 6 characters long (old DIF3D requirement, possibly relaxable nowadays)
+
+    This converts the first digit of a 2-digit ring number (or i index) to alpha, A for 0,
+    B for 1, etc.
+
+    This uses the concept of Ring and Position rather than regular indices. This was once
+    specialized for hex only but since we refactored this into a single method rather
+    than an instance method on grid, we lost that specialization and now just do
+    ring/position for everything. Arguably we could switch over to all i/j based
+    and not change anything except the contents of the DIF3D input/output file labels.
+    """
+    indices = block.spatialLocator.getCompleteIndices()
+    ring, pos = block.spatialLocator.getRingPos()
+    if ring < 26 and pos < 1000:
+        # original "small problem" behavior
+        chrNum = int(ring // 10)
+        label = "{}{:03d}".format(chr(ASCII_LETTER_A + chrNum) + str(ring % 10), pos)
+    else:
+        # larger problem ("limitless") behavior.
+        raise ValueError(
+            f"Cannot derive label for indices {indices}; i or j are too high."
+        )
+    if len(indices) == 3:
+        if indices[2] < len(AXIAL_CHARS):
+            label += AXIAL_CHARS[indices[2]]
+        else:
+            raise ValueError(
+                f"Cannot derive label for location indices {indices}. "
+                "Axial val too high."
+            )
+
+    return label
 
 
 class NuclideSummary(NamedTuple):
@@ -150,6 +213,8 @@ class Dif3dWriter:
             # todo: probably pass this dict to geomWriter to add its keys
             "axialMesh": self.geometryWriter.makeNIP9(),
             "hexes": self.geometryWriter.makeNIP30(),
+            "getDIF3DStyleLocatorLabel": getDIF3DStyleLocatorLabel,
+            "getDIF3DStyleBlockName": getDIF3DStyleBlockName,
         }
 
 
@@ -192,7 +257,7 @@ class HexGeom(GeometryWriter):
             else:
                 raise ValueError(invalidMsg)
 
-        elif self.r.core.symmetry == geometry.THIRD_CORE + geometry.PERIODIC:
+        elif self.r.core.symmetry == " ".join([geometry.THIRD_CORE, geometry.PERIODIC]):
             geomNumber = "126" if self.options.nodal else "94"
             if self.options.boundaries == neutronics.INFINITE:
                 bc = " 7     3     3     3     3     3 "
@@ -235,7 +300,7 @@ class HexGeom(GeometryWriter):
                 if ring is None or pos is None:
                     raise ValueError("{} in {} has invalid location.".format(block, a))
                 hexes.append(
-                    HexDatum(block.getLocation(), ring, pos, bottom, top)
+                    HexDatum(getDIF3DStyleLocatorLabel(block), ring, pos, bottom, top)
                 )
                 bottom = top
         return hexes
@@ -287,9 +352,6 @@ class _XSBasedRegionGenerator(object):
         raise NotImplementedError
 
     def writeNIP13(self, outFile, external=False):
-        raise NotImplementedError
-
-    def writeNIP14(self, outFile):
         raise NotImplementedError
 
     def writeSummaryLines(self):
@@ -373,19 +435,7 @@ class ISOTXSRegionGenerator(_XSBasedRegionGenerator):
                     continue
                 mc2Label = nuclideBases.byName[nucName].label
                 nucLabel = mc2Label + b.getMicroSuffix()
-                compositions.append(NumberDensityDatum(b.name, nucLabel, dens))
+                compositions.append(
+                    NumberDensityDatum(getDIF3DStyleBlockName(b), nucLabel, dens)
+                )
         return compositions
-
-    def writeNIP14(self, outFile):
-        """
-        Write primary and secondary composition definitions.
-
-        Primary composition labels start with ``"Y"`` and secondary labels start with ``"Z"``
-        """
-        lines = []
-        for block in self.r.core.getBlocks():
-            name = block.name[1:]
-            lines.append("14          Z{:5s} {:6s} 1.0\n".format(name, block.name))
-            lines.append("14          Y{:5s} Z{:5s} 1.0\n".format(name, name))
-
-        outFile.write("".join(lines))

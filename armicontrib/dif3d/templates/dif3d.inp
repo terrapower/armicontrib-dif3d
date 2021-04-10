@@ -56,13 +56,13 @@ UNFORM=A.NIP3
 13 {{ "{:6s}".format(region) }} {{ "{:6s}".format(nucID) }} {{"{:.9E}".format(ndens)}}
 {%endfor%}
 {% for block in r.core.getBlocks() %}
-{% set rname = block.name[1:] %}
-14 Z{{ "{:5s} {:6s} 1.0".format(rname, block.name) }}
+{% set rname = getDIF3DStyleBlockName(block)[1:] %}
+14 Z{{ "{:5s} {:6s} 1.0".format(rname, getDIF3DStyleBlockName(block)) }}
 14 Y{{ "{:5s} Z{:5s} 1.0".format(rname, rname) }}
 {%endfor%}
 {% for block in r.core.getBlocks() %}
-{% set rname = block.name[1:] %}
-15 Y{{ "{:5s} {:6s}".format(rname, block.getLocation()) }}
+{% set rname = getDIF3DStyleBlockName(block)[1:] %}
+15 Y{{ "{:5s} {:6s}".format(rname, getDIF3DStyleLocatorLabel(block)) }}
 {%endfor%}
 29 {{ r.core.getAssemblyPitch() }} 0 {{opts.numberMeshPerEdge}}
 {% for loc, ring, position, bottom, top in hexes %}

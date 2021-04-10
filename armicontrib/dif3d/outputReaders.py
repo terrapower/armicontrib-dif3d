@@ -41,6 +41,7 @@ from armi.bookkeeping.db import Database3
 from .binaryIO import dif3dFile, pkedit
 from .const import SolutionType
 from .executionOptions import Dif3dOptions
+from .inputWriters import getDIF3DStyleLocatorLabel
 
 # TODO: should be a GlobalFluxResultMapper subclass to get dpa, etc.
 class Dif3dReader:
@@ -179,7 +180,7 @@ class Dif3dReader:
         This could be cached in RAM so it's not computed for power and each flux
         if it turns out to be slow. Pending profiler results.
         """
-        regionName = b.getLocation()
+        regionName = getDIF3DStyleLocatorLabel(b)
         regInd = np.where(self._labels.regionLabels == regionName)[0][0]
         regNum = regInd + 1
         return np.array(np.where(self._geom.coarseMeshRegions == regNum)).T, regInd
@@ -250,7 +251,7 @@ class Dif3dReader:
         stdoutReader = Dif3dStdoutReader(self.opts.outputFile)
         peakFluxes = stdoutReader.readRegionTotals()
         for b in self.r.core.getBlocks():
-            b.p.fluxPeak = peakFluxes[b.getLocation()]
+            b.p.fluxPeak = peakFluxes[getDIF3DStyleLocatorLabel(b)]
 
     def _checkKeffs(self, fluxData):
         """
