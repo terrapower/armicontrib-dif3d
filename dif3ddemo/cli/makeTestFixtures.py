@@ -93,6 +93,12 @@ class MakeFixtures(EntryPoint):
             default=False,
             help="Just post-process an existing suite; don't run",
         )
+        self.parser.add_argument(
+            "--inputs-only",
+            action="store_true",
+            default=False,
+            help="Just make input files for the suite; don't run",
+        )
 
     @staticmethod
     def _initSettings():
@@ -109,9 +115,7 @@ class MakeFixtures(EntryPoint):
         benefit from getting automatically-updated test inputs as the ARMI
         framework progresses in the future.
         """
-        cs = caseSettings.Settings(
-            os.path.join(test_reactors.TEST_ROOT, "armiRun.yaml")
-        )
+        cs = caseSettings.Settings(os.path.join(test_reactors.TEST_ROOT, "armiRun.yaml"))
         print("setting from _initSettings", cs[CONF_DIF3D_PATH])
 
         return cs
@@ -123,7 +127,8 @@ class MakeFixtures(EntryPoint):
                     self.cs[CONF_DIF3D_PATH]
                 )
             )
-            sys.exit(1)
+            if not self.args.inputs_only:
+                sys.exit(1)
 
         if shutil.which(self.cs[CONF_DRAGON_PATH]) is None:
             runLog.error(
@@ -131,15 +136,22 @@ class MakeFixtures(EntryPoint):
                     self.cs[CONF_DRAGON_PATH]
                 )
             )
-            sys.exit(1)
+            if not self.args.inputs_only:
+                sys.exit(1)
 
         if not self.args.post_process:
-            suite = self._execute()
+            suite = self._buildSuite()
+            suite.writeInputs()
         else:
             suite = None
-        self._postProcess(suite)
 
-    def _execute(self):
+        if not self.args.inputs_only and not self.args.post_process:
+            suite.run()
+
+        if not self.args.inputs_only:
+            self._postProcess(suite)
+
+    def _buildSuite(self):
         # pylint: disable=import-outside-toplevel; need to be configured first
         from armi import cases
         from armi.cases import suiteBuilder
@@ -168,12 +180,8 @@ class MakeFixtures(EntryPoint):
         solutionTypes = [
             SettingsModifier(CONF_NEUTRONICS_TYPE, "real"),
             # turn off coarse mesh rebalancing in all adjoint cases so they converge.
-            MultiSettingModifier(
-                {CONF_NEUTRONICS_TYPE: "adjoint", CONF_COARSE_MESH_REBALANCE: -1}
-            ),
-            MultiSettingModifier(
-                {CONF_NEUTRONICS_TYPE: "both", CONF_COARSE_MESH_REBALANCE: -1}
-            ),
+            MultiSettingModifier({CONF_NEUTRONICS_TYPE: "adjoint", CONF_COARSE_MESH_REBALANCE: -1}),
+            MultiSettingModifier({CONF_NEUTRONICS_TYPE: "both", CONF_COARSE_MESH_REBALANCE: -1}),
         ]
         builder.addDegreeOfFreedom(solutionTypes)
 
@@ -212,8 +220,7 @@ class MakeFixtures(EntryPoint):
 
         suite = builder.buildSuite(namingFunc=namingFunc)
         suite.echoConfiguration()
-        suite.writeInputs()
-        suite.run()
+
         return suite
 
     def _postProcess(self, suite=None):
@@ -246,11 +253,7 @@ class MakeFixtures(EntryPoint):
             table.append(line)
 
         print("Keff summary for all runs")
-        print(
-            tabulate.tabulate(
-                table, headers=ntypes, floatfmt=".9f", disable_numparse=True
-            )
-        )
+        print(tabulate.tabulate(table, headers=ntypes, floatfmt=".9f", disable_numparse=True))
 
     def _updateSettings(self):
         cs = self.cs
