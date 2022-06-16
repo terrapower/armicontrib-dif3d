@@ -40,7 +40,6 @@ import subprocess
 
 from armi.utils import directoryChangers
 from armi.utils import outputCache
-from armi.localization import exceptions
 from armi.reactor import composites
 from armi.physics import executers
 from armi.physics.neutronics.globalFlux import globalFluxInterface
