@@ -26,3 +26,5 @@ See :ref:`sec-index` for main documentation.
 
     Class inheritance diagram for :py:mod:`dif3d`.
 """
+
+__version__ = "1.0.1"

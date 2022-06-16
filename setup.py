@@ -18,10 +18,7 @@ setup(
     entry_points={"console_scripts": ["dif3ddemo=dif3ddemo:main"]},
     long_description=README,
     install_requires=[
-        # ARMI 0.1.6 is needed since it is the last version before Locations were
-        # removed, which this still uses. Need to refactor to grids/spatial locators to
-        # target newer ARMI versions
-        "armi==0.1.6",
+        "armi",
         "jinja2",
         "terrapower-dragon",
     ],

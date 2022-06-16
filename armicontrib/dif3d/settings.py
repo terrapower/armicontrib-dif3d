@@ -46,8 +46,6 @@ CONF_DIF3D_PATH = "dif3dExePath"
 CONF_ERF = "erf"
 CONF_NEGLECT_FIS = "neglectFis"
 CONF_NIP_MEM = "nipMem"
-CONF_OUTERS = "outers"
-CONF_INNERS = "inners"
 CONF_XS_MEM = "xsMem"
 CONF_VARIANT_TRANSPORT_AND_SCATTER_ORDER = "variantTransportAndScatterOrder"
 CONF_EPS_BURN_TIME = "epsBurnTime"
@@ -195,21 +193,6 @@ def defineSettings():
             description=(
                 "Size of main core storage array for geometry processing module "
                 "(GNIP4C) in A.NIP card of DIF3D/REBUS. Max recommended=40000000"
-            ),
-        ),
-        setting.Setting(
-            CONF_OUTERS,
-            default=100,
-            label="Max Outer Iterations",
-            description="Max number of outer iterations to converge",
-        ),
-        setting.Setting(
-            CONF_INNERS,
-            default=0,
-            label="Inner Iterations",
-            description=(
-                "XY and Axial partial current sweep inner iterations. 0 is let DIF3D "
-                "pick or use default if can't pick."
             ),
         ),
         setting.Setting(

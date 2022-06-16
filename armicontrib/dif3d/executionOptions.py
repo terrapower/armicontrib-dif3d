@@ -17,6 +17,9 @@ import shutil
 
 from armi import runLog
 from armi.physics.neutronics.globalFlux import globalFluxInterface
+from armi.physics.neutronics.settings import CONF_OUTERS_ as CONF_OUTERS
+from armi.physics.neutronics.settings import CONF_INNERS_ as CONF_INNERS
+
 from armi.settings import caseSettings
 from armi.physics import neutronics
 from armi.physics.neutronics import settings as gsettings
@@ -91,7 +94,7 @@ class Dif3dOptions(globalFluxInterface.GlobalFluxOptions):
         self.epsFissionSourceAvg = cs[gsettings.CONF_EPS_FSAVG]
         self.epsFissionSourcePoint = cs[gsettings.CONF_EPS_FSPOINT]
         self.epsEigenvalue = cs[gsettings.CONF_EPS_EIG]
-        self.maxOuters = cs[settings.CONF_OUTERS]
+        self.maxOuters = cs[CONF_OUTERS]
         self.numberMeshPerEdge = cs[gsettings.CONF_NUMBER_MESH_PER_EDGE]
         self.erf = cs[settings.CONF_ERF]
         self.bcCoefficient = cs[gsettings.CONF_BC_COEFFICIENT]
@@ -103,7 +106,7 @@ class Dif3dOptions(globalFluxInterface.GlobalFluxOptions):
             settings.CONF_ASYMP_EXTRAP_OF_OVER_RELAX_CALC
         ]
         self.coarseMeshRebalance = cs[settings.CONF_COARSE_MESH_REBALANCE]
-        self.inners = cs[settings.CONF_INNERS]
+        self.inners = cs[CONF_INNERS]
         self.asympExtrapOfNodalCalc = cs[settings.CONF_ASYMP_EXTRAP_OF_NODAL_CALC]
         self.variantNodalSpatialApproximation = cs[
             settings.CONF_VARIANT_NODAL_SPATIAL_APPROXIMATION
