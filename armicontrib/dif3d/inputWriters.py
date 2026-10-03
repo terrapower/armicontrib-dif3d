@@ -203,13 +203,17 @@ class Dif3dWriter:
         Populate data structures for rendering in the template.
         """
         boundaries, geomNum = self.geometryWriter.getBoundaryConditionsAndGeomNum()
+        compositions = self.regionWriter.makeNIP13()
         return {
             "opts": self.options,
             "r": self.r,
             "boundaryConditions": boundaries,
             "geomNum": geomNum,
             "nuclideSummary": self.regionWriter.writeSummaryLines(),
-            "compositions": self.regionWriter.makeNIP13(),
+            "compositions": compositions,
+            "compositionCards": "\n".join(
+                f"13 {region:6s} {nucID:6s} {ndens:.9E}" for region, nucID, ndens in compositions
+            ),
             # todo: probably pass this dict to geomWriter to add its keys
             "axialMesh": self.geometryWriter.makeNIP9(),
             "hexes": self.geometryWriter.makeNIP30(),
@@ -425,17 +429,15 @@ class ISOTXSRegionGenerator(_XSBasedRegionGenerator):
             Empty list of number densities.
         """
         compositions = []
-        for b in self.r.core.getBlocks():  # pylint: disable=too-many-nested-blocks
-            for nucName, dens in zip(
-                self.r.blueprints.allNuclidesInProblem,
-                b.getNuclideNumberDensities(self.r.blueprints.allNuclidesInProblem),
-            ):
-                nuclideBase = nuclideBases.byName[nucName]
-                if not dens or self._nuclideIsSkipped(nuclideBase):
+        allNuclides = self.r.blueprints.allNuclidesInProblem
+        # these only depend on the nuclide, so look them up once rather than per block
+        labels = [nuclideBases.byName[nucName].label for nucName in allNuclides]
+        skipped = [self._nuclideIsSkipped(nuclideBases.byName[nucName]) for nucName in allNuclides]
+        for b in self.r.core.getBlocks():
+            blockName = getDIF3DStyleBlockName(b)
+            microSuffix = b.getMicroSuffix()
+            for label, skip, dens in zip(labels, skipped, b.getNuclideNumberDensities(allNuclides)):
+                if not dens or skip:
                     continue
-                mc2Label = nuclideBases.byName[nucName].label
-                nucLabel = mc2Label + b.getMicroSuffix()
-                compositions.append(
-                    NumberDensityDatum(getDIF3DStyleBlockName(b), nucLabel, dens)
-                )
+                compositions.append(NumberDensityDatum(blockName, label + microSuffix, dens))
         return compositions

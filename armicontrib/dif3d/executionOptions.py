@@ -90,14 +90,14 @@ class Dif3dOptions(globalFluxInterface.GlobalFluxOptions):
         self.executablePath = shutil.which(cs[settings.CONF_DIF3D_PATH])
         self.setRunDirFromCaseTitle(cs.caseTitle)
         self.neutronicsOutputsToSave = cs[settings.CONF_NEUTRONICS_OUTPUTS_TO_SAVE]
-        self.existingFixedSource = cs[gsettings.CONF_EXISTING_FIXED_SOURCE]
+        self.existingFixedSource = cs[settings.CONF_EXISTING_FIXED_SOURCE]
         self.epsFissionSourceAvg = cs[gsettings.CONF_EPS_FSAVG]
         self.epsFissionSourcePoint = cs[gsettings.CONF_EPS_FSPOINT]
         self.epsEigenvalue = cs[gsettings.CONF_EPS_EIG]
         self.maxOuters = cs[CONF_OUTERS]
-        self.numberMeshPerEdge = cs[gsettings.CONF_NUMBER_MESH_PER_EDGE]
+        self.numberMeshPerEdge = cs[settings.CONF_NUMBER_MESH_PER_EDGE]
         self.erf = cs[settings.CONF_ERF]
-        self.bcCoefficient = cs[gsettings.CONF_BC_COEFFICIENT]
+        self.bcCoefficient = cs[settings.CONF_BC_COEFFICIENT]
         self.d3dMem = cs[settings.CONF_D3D_MEM]
         self.d3dMem2 = cs[settings.CONF_D3D_MEM2]
         self.nipMem = cs[settings.CONF_NIP_MEM]

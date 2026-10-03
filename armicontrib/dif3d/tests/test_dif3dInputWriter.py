@@ -37,6 +37,8 @@ class TestInputWriter(ArmiTestHelper):
     def setUp(self):
         self.o, self.r = test_reactors.loadTestReactor()
         self.o.cs[CONF_NEUTRONICS_KERNEL] = "DIF3D-Nodal"
+        # the operator sets core power at each time node, which hasn't happened yet here
+        self.r.core.p.power = self.o.cs["power"]
 
     def testWriteInput(self):
         """Write input and compare to reference input."""

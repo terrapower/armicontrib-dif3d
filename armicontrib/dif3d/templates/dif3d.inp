@@ -52,9 +52,10 @@ UNFORM=A.NIP3
 {% for md in axialMesh %}
 09 {{ md.direction}} {{ md.submeshes }} {{ "{:.9E}".format(md.upperCm) }}
 {% endfor %}
-{% for region, nucID, ndens in compositions %}
-13 {{ "{:6s}".format(region) }} {{ "{:6s}".format(nucID) }} {{"{:.9E}".format(ndens)}}
-{%endfor%}
+{# card 13 is pre-rendered in Python since it can have 100k+ lines #}
+{% if compositionCards %}
+{{ compositionCards }}
+{% endif %}
 {% for block in r.core.getBlocks() %}
 {% set rname = getDIF3DStyleBlockName(block)[1:] %}
 14 Z{{ "{:5s} {:6s} 1.0".format(rname, getDIF3DStyleBlockName(block)) }}

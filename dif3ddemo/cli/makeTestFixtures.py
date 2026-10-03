@@ -33,7 +33,7 @@ on the command line. For example::
 import os
 import shutil
 import sys
-import tabulate
+from armi.utils import tabulate
 
 from armi import runLog
 from armi.cli.entryPoint import EntryPoint

@@ -32,11 +32,11 @@ import os
 
 import numpy as np
 
-from armi.nuclearDataIO import geodst, labels, rtflux, pwdint
+from armi.nuclearDataIO.cccc import geodst, labels, rtflux, pwdint
 from armi.reactor import reactors
 from armi import runLog
 
-from armi.bookkeeping.db import Database3
+from armi.bookkeeping.db import Database
 
 from .binaryIO import dif3dFile, pkedit
 from .const import SolutionType
@@ -65,6 +65,8 @@ class Dif3dReader:
         self._geom: geodst.GeodstData = None
         self._labels: labels.LabelsData = None
         self._dif3dData: dif3dFile.Dif3dData = None
+        self._regionIndexByLabel = None
+        self._meshesByRegion = None
         self._check()
 
     def _check(self):
@@ -114,7 +116,7 @@ class Dif3dReader:
         self._readPeakFluxes()
 
         if self.opts.detailedDb is not None:
-            with Database3(self.opts.detailedDb, "w") as dbo:
+            with Database(self.opts.detailedDb, "w") as dbo:
                 dbo.writeInputsToDB(self.opts.csObject)
                 dbo.writeToDB(self.r)
 
@@ -126,6 +128,25 @@ class Dif3dReader:
         """Read basic region labels and geometry information into memory."""
         self._geom = geodst.readBinary(geodst.GEODST)
         self._labels = labels.readBinary(labels.LABELS)
+        self._indexRegions()
+
+    def _indexRegions(self):
+        """
+        Map each region label and region number to its meshes in a single pass.
+
+        Finding each block's meshes with a search over the whole coarse mesh is
+        O(blocks x meshes), which gets slow for large full-core cases.
+        """
+        self._regionIndexByLabel = {}
+        for regInd, label in enumerate(self._labels.regionLabels):
+            # keep the first, like np.where(...)[0][0]
+            self._regionIndexByLabel.setdefault(label, regInd)
+
+        # flat (C-order) mesh indices grouped by region number, each group in C order
+        regions = self._geom.coarseMeshRegions.ravel()
+        order = np.argsort(regions, kind="stable")
+        bounds = np.searchsorted(regions[order], np.arange(len(self._labels.regionLabels) + 2))
+        self._meshesByRegion = [order[lo:hi] for lo, hi in zip(bounds[:-1], bounds[1:])]
 
     def _readKeff(self):
         """Store keff from the outputs onto the reactor model."""
@@ -156,16 +177,13 @@ class Dif3dReader:
         pwdintData = pwdint.PwdintStream.readBinary(pwdint.PWDINT)
         runLog.extra("Reading peak power distributions from PKEDIT")
         pkeditData = pkedit.PkeditStream.readBinary(pkedit.PKEDIT)
+        powerDensity = pwdintData.powerDensity.ravel()
+        peakPowerDensity = pkeditData.peakPowerDensity.ravel()
         for b in self.r.core.getBlocks():
             meshesInRegion, regIndex = self._getMeshesInRegion(b)
-            numMeshes = meshesInRegion.shape[0]
             volumeCC = self._geom.regionVolumes[regIndex]
-            pdenses = np.zeros(numMeshes)
-            ppdenses = np.zeros(numMeshes)
-            # pylint: disable=not-an-iterable.; pylint bug RE .T on ndarray
-            for meshI, (i, j, k) in enumerate(meshesInRegion):
-                pdenses[meshI] = pwdintData.powerDensity[i, j, k]
-                ppdenses[meshI] = pkeditData.peakPowerDensity[i, j, k]
+            pdenses = powerDensity[meshesInRegion].astype(np.float64)
+            ppdenses = peakPowerDensity[meshesInRegion].astype(np.float64)
             # assume all meshes in region are the same size (e.g. triangles in a hex)
             b.p.pdens = pdenses.mean()
             b.p.ppdens = ppdenses.max()
@@ -173,17 +191,18 @@ class Dif3dReader:
 
     def _getMeshesInRegion(self, b):
         """
-        Find which mesh indices contain data for this object.
+        Find which meshes contain data for this object.
 
-        Notes
-        -----
-        This could be cached in RAM so it's not computed for power and each flux
-        if it turns out to be slow. Pending profiler results.
+        Returns
+        -------
+        meshes : np.ndarray
+            Flat (C-order) indices into the (i, j, k) mesh arrays.
+        regInd : int
+            Zero-based region index.
         """
-        regionName = getDIF3DStyleLocatorLabel(b)
-        regInd = np.where(self._labels.regionLabels == regionName)[0][0]
+        regInd = self._regionIndexByLabel[getDIF3DStyleLocatorLabel(b)]
         regNum = regInd + 1
-        return np.array(np.where(self._geom.coarseMeshRegions == regNum)).T, regInd
+        return self._meshesByRegion[regNum], regInd
 
     def _readFluxes(self):
         """
@@ -231,13 +250,11 @@ class Dif3dReader:
         """
         self._checkKeffs(fluxData)
         ng = fluxData.metadata["NGROUP"]
+        groupFluxes = fluxData.groupFluxes.reshape(-1, ng)
         for b in self.r.core.getBlocks():
             meshesInRegion, _regIndex = self._getMeshesInRegion(b)
-            numMeshes = meshesInRegion.shape[0]
-            fluxes = np.zeros((ng, numMeshes))
-            # pylint: disable=not-an-iterable.; pylint bug RE .T on ndarray
-            for meshI, (i, j, k) in enumerate(meshesInRegion):
-                fluxes[:, meshI] = fluxData.groupFluxes[i, j, k, :]
+            # (ng, numMeshes), contiguous along meshes like the original loop built it
+            fluxes = np.ascontiguousarray(groupFluxes[meshesInRegion].T)
             # mean over mesh axis gives G-group avg
             setattr(b.p, mgParam, fluxes.mean(1))
             setattr(b.p, fluxParam, getattr(b.p, mgParam).sum())

@@ -30,7 +30,7 @@ import shutil
 
 from armi.physics.neutronics import settings as neutronicsSettings
 from armi.settings import setting
-from armi.operators import settingsValidation
+from armi.settings import settingsValidation
 from armi.physics import neutronics
 
 
@@ -56,6 +56,12 @@ CONF_USE_RADIAL_INNER_ITERATION_ALGORITHM = "useRadialInnerIterationAlgorithm"
 CONF_VARIANT_NODAL_SPATIAL_APPROXIMATION = "variantNodalSpatialApproximation"
 CONF_DIF3D_DB = "writeDif3dDb"
 
+# These were defined by the ARMI framework until it moved code-specific neutronics settings
+# out to plugins.
+CONF_BC_COEFFICIENT = "bcCoefficient"
+CONF_EXISTING_FIXED_SOURCE = "existingFixedSource"
+CONF_NUMBER_MESH_PER_EDGE = "numberMeshPerEdge"
+
 
 CONF_OPT_DIF3DNODAL = "DIF3D-Nodal"
 CONF_OPT_DIF3DFD = "DIF3D-FD"
@@ -71,6 +77,26 @@ KERNELS = {CONF_OPT_DIF3DNODAL, CONF_OPT_DIF3DFD, CONF_OPT_VARIANT}
 
 def defineSettings():
     settings = [
+        setting.Setting(
+            CONF_BC_COEFFICIENT,
+            default=0.0,
+            label="Parameter A for generalized BC",
+            description="Value for the parameter A of the generalized boundary condition.",
+        ),
+        setting.Setting(
+            CONF_EXISTING_FIXED_SOURCE,
+            default="",
+            label="Existing fixed source input",
+            description="Specify an exiting fixed source input file.",
+            options=["", "FIXSRC", "VARSRC"],
+        ),
+        setting.Setting(
+            CONF_NUMBER_MESH_PER_EDGE,
+            default=1,
+            label="Number of Mesh per Edge",
+            description="Number of mesh per block edge for finite-difference planar mesh refinement.",
+            oldNames=[("hexSideSubdivisions", None)],
+        ),
         setting.Setting(
             CONF_DIF3D_DB,
             default=False,

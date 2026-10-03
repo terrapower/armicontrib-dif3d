@@ -32,7 +32,7 @@ instance.
 
 from armi import runLog
 from armi import interfaces
-from armi.nuclearDataIO import isotxs
+from armi.nuclearDataIO.cccc import isotxs
 from armi.physics import neutronics
 from armi.physics.neutronics.latticePhysics import latticePhysicsInterface
 from armi.nuclearDataIO import xsLibraries
